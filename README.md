@@ -172,12 +172,6 @@ Running `processor.py` produces:
 | Presentation (PPTX) | Project overview, pipeline architecture, and experimental results |
 | Project Guidelines (PDF) | Original course project requirements |
 
-## Limitations
-
-This project is an educational simulation of pipeline timing and dependency handling, not a complete CPU emulator.
-
-It does not implement actual instruction execution, physical register storage, memory operations, or a complete processor instruction set.
-
 ## Academic Information
 
 **Author:** Jacob Wallace  
