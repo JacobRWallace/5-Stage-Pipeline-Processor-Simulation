@@ -1,4 +1,4 @@
-# 5-Stage Pipeline Processor Simulator
+# 5-Stage Pipeline Processor Simulation
 
 A Python-based simulation of a 5-stage CPU instruction pipeline demonstrating **Read After Write (RAW) data hazards, pipeline stalls, data forwarding, and performance analysis**.
 
