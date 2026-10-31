@@ -57,8 +57,9 @@ def run(program, forwarding):
     stages =["IF", "ID", "EX", "MEM", "WB"]
 
     #3 - five stages are saved so every cycle can be tracked
-    for i in stages:
-        stage[i] = [None] * (count*6) #multiply by 6 to have enough cycles for the program to finish processing
+    # for i in stages:
+    #     stage[i] = [None] * (count*6) #multiply by 6 to have enough cycles for the program to finish processing
+    stage = {s: [None] for s in stages} # slot 0 = "before cycle 1"
 
     # variables to track pipeline state
     ready = {} #hazard detection: tracks when registers are ready to be read
@@ -82,7 +83,9 @@ def run(program, forwarding):
             break
 
         cycleCount = cycleCount+1
-
+        for s in stage:
+            stage[s].append(None) # Making room for this cycle
+            
         #4.2 - MEM and EX move foward to the writeback stage
         if (stage["MEM"][cycleCount-1] is not None):
             stage["WB"][cycleCount] = stage["MEM"][cycleCount-1]
