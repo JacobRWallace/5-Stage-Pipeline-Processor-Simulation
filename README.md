@@ -117,13 +117,13 @@ An instruction immediately depends on data loaded by a preceding `LW` instructio
 
 The following results were recorded during the project simulations.
 
-> **Note:** these numbers include two known timing bugs in `processor.py` (it fetches only every other cycle and counts one extra empty cycle at the end). Textbook values are 9/9, 17/10 and 18/11 cycles with 0/0, 8/1 and 8/1 stalls; `tests/test_core.py` checks against those.
+> **Note:** the original project report shows 14/14, 18/14 and 19/16 cycles. Those came from timing bugs in the first version of `processor.py` (fetching only every other cycle, an extra empty cycle at the end, and a load forwarding delay one cycle too long). The table below is from the fixed simulator and matches textbook 5-stage timing.
 
 | Test Program | Forwarding OFF Cycles | Forwarding ON Cycles | OFF Stalls | ON Stalls |
 |---|---:|---:|---:|---:|
-| No Hazards | 14 | 14 | 0 | 0 |
-| Data Hazards | 18 | 14 | 7 | 1 |
-| Load-Use Hazards | 19 | 16 | 7 | 1 |
+| No Hazards | 9 | 9 | 0 | 0 |
+| Data Hazards | 17 | 10 | 8 | 1 |
+| Load-Use Hazards | 18 | 11 | 8 | 1 |
 
 ### Performance Measurements
 
@@ -140,9 +140,9 @@ Lower CPI indicates fewer average clock cycles per instruction in the simulated 
 ### Key Findings
 
 - Forwarding does not improve programs without register dependencies.
-- Forwarding reduces stalls from **7 to 1** in both hazard test programs.
-- Data hazard test cycles decrease from **18 to 14**.
-- Load-use hazard test cycles decrease from **19 to 16**.
+- Forwarding reduces stalls from **8 to 1** in both hazard test programs.
+- Data hazard test cycles decrease from **17 to 10**.
+- Load-use hazard test cycles decrease from **18 to 11**.
 - Reducing pipeline stalls improves overall simulated instruction throughput.
 
 ## Output
@@ -164,7 +164,7 @@ python3 -m venv .venv
 .venv/bin/python -m pytest
 ```
 
-Tests import the `pipeline_sim` package (`src/pipeline_sim/`), a thin adapter that parses assembly text, runs `processor.run()`, and returns cycles, stalls, CPI, a per-instruction timeline, and a stall log. `tests/test_core.py` is always on and currently fails where `processor.py` deviates from textbook timing. See [`tests/README.md`](tests/README.md) for the full conventions.
+Tests import the `pipeline_sim` package (`src/pipeline_sim/`), a thin adapter that parses assembly text, runs `processor.run()`, and returns cycles, stalls, CPI, a per-instruction timeline, and a stall log. `tests/test_core.py` is always on and checks textbook 5-stage timing. See [`tests/README.md`](tests/README.md) for the full conventions.
 
 ## Extensions
 

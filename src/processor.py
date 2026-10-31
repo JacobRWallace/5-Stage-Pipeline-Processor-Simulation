@@ -75,7 +75,7 @@ def run(program, forwarding):
 
         #4.1 - checks if the pipeline still has an instruction inside it
         for i in stage:
-            if (stage[i][cycleCount] is not None):
+            if (i!= "WB" and stage[i][cycleCount] is not None):
                 active=True
                 break
 
@@ -85,7 +85,7 @@ def run(program, forwarding):
         cycleCount = cycleCount+1
         for s in stage:
             stage[s].append(None) # Making room for this cycle
-            
+
         #4.2 - MEM and EX move foward to the writeback stage
         if (stage["MEM"][cycleCount-1] is not None):
             stage["WB"][cycleCount] = stage["MEM"][cycleCount-1]
@@ -138,11 +138,11 @@ def run(program, forwarding):
                     dest = instr.get("dest")
 
 
-                if (dest is not None): #if instruction has destination register, update the ready cycle for that register
+                if (dest is not None and dest != "R0"): #if instruction has destination register, update the ready cycle for that register. V2: Ignoring R0 since it can never cause any hazards
                     #7.1 - forwarding to make the results available faster by changing the ready cycle for the destination register
                     if (forwarding):
                         if (instr["op"] == "LW"): #load instruction results are ready later than ALU instructions
-                            ready[dest] = cycleCount+3 #INC by 3 cycles for faster results
+                            ready[dest] = cycleCount+2 #INC by 2 cycles: MEM/WB forwards the loaded value into EX
                         else: # ALU instruction results are ready sooner
                             ready[dest] = cycleCount+1 #default
 
@@ -157,7 +157,7 @@ def run(program, forwarding):
             stage["IF"][cycleCount] = stage["IF"][cycleCount-1]
 
         #4.4 - new instruction is fetched when IF is open
-        if (next < count and stage["IF"][cycleCount] is None and stage["IF"][cycleCount-1] is None):
+        if (next < count and stage["IF"][cycleCount] is None):
             stage["IF"][cycleCount] =next
             next = next+1
 
