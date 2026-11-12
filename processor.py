@@ -19,7 +19,24 @@
 
 
 programs = [ 
-            
+    
+    #@@ Asa @@ this example gives you the parse of the type of instruction for new entries beq, a1, a2, 
+    #0 - branch
+    ("Branch Hazard", [ 
+        {"op": "BEQ",  "jump": "5", "src1": "R4", "src2": "R5", "out": "true"}, # new, SB beq
+        {"op": "LUI", "dest": "R12", "immediate": 400},
+        {"op": "SUB", "dest": "R6", "src1": "R7", "src2": "R8"},
+        {"op": "AND", "dest": "R9", "src1": "R10", "src2": "R11"},
+        {"op": "JAL", "dest": "R1", "immediate": 1000}
+    ]),    
+    #0.1 - new
+    ("Upper Instructions", [ 
+        {"op": "LW",  "dest": "R1", "offset": 0, "base": "R2"}, 
+        {"op": "LUI", "dest": "R12", "immediate": 400},                         # new, U lui
+        {"op": "SUB", "dest": "R6", "src1": "R7", "src2": "R8"},
+        {"op": "AND", "dest": "R9", "src1": "R10", "src2": "R11"},
+        {"op": "JAL", "dest": "R1", "immediate": 1000}                          # new, UJ jal
+    ]),    
     #1 - 1st test: instructions that do not depend on each other
     ("No Hazards", [ 
         {"op": "LW",  "dest": "R1", "offset": 0, "base": "R2"},
@@ -47,7 +64,14 @@ programs = [
         
     ]), 
 ]
-  
+
+################# Change Proposed #########################
+# Switch to a file input read system, where the program 
+# takes a simple assembly file in the following format.
+# lw a1, 0(s0)
+# add t0, t1, t1
+# subi t1, s1, s2
+##########################################################
  
 results = [] 
  
@@ -59,14 +83,14 @@ for item in programs:
     
      #setup pipeline stages
     for forwarding in [False, True]:
-        count = len(program)
+        instructCount = len(program)
          
         stage = {}
         stages =["IF", "ID", "EX", "MEM", "WB"] 
 
         #3 - five stages are saved so every cycle can be tracked
         for i in stages: 
-            stage[i] = [None] * (count*6) #multiply by 6 to have enough cycles for the program to finish processing
+            stage[i] = [None] * (instructCount*6) #multiply by 6 to have enough cycles for the program to finish processing
 
         # variables to track pipeline state
         ready = {} #hazard detection: tracks when registers are ready to be read
@@ -74,10 +98,10 @@ for item in programs:
         messages = [] 
         cycleCount = 0 
         next=0 
+        branched = False
          
         #4 - main clock cycle loop for the simulation
         while True:
-        
             active=False 
         
             #4.1 - checks if the pipeline still has an instruction inside it
@@ -85,16 +109,27 @@ for item in programs:
                 if (stage[i][cycleCount] is not None):
                     active=True
                     break
-                    
-            if (next >=count and not active):
+            
+            #4.2 - exit when end of program reached        
+            if (next >=instructCount and not active):
                 break
                  
             cycleCount = cycleCount+1 
 
-            #4.2 - MEM and EX move foward to the writeback stage
+            #4.2.1 - MEM and EX move foward
             if (stage["MEM"][cycleCount-1] is not None):
                 stage["WB"][cycleCount] = stage["MEM"][cycleCount-1] 
-            if (stage["EX"][cycleCount-1] is not None): 
+            if (stage["EX"][cycleCount-1] is not None):
+
+                #4.2.2 branch if condition is true and branch functiion called
+                if (program[stage["EX"][cycleCount-1]]["op"] == "BEQ"):
+                    if (program[stage["EX"][cycleCount-1]]["out"] == "true"):
+                        jumpNum = program[stage["EX"][cycleCount-1]]["jump"]
+                        print(f"The program branched at cc {cycleCount}, jumping {jumpNum} lines ahead")
+                        branched = True
+                        break
+                
+
                 stage["MEM"][cycleCount] = stage["EX"][cycleCount-1] 
             
             
@@ -105,15 +140,22 @@ for item in programs:
                 index = stage["ID"][cycleCount-1] #index of the instruction in the program list
                 instr = program[index] #instruction data for the current instruction in ID stage
             
+                ########################## Change ###############################
+                # Instructions needed
+                # - SB: beq, bge, blt
+                # - U: lui
+                # - UJ: jal
+                #################################################################
                 #5.1 - different instruction types read different registers
                 if (instr["op"]=="LW"):
                     sources =[instr["base"]] 
                 elif (instr["op"]=="SW"): 
                     sources = [instr["src1"], instr["base"]] 
-                elif (instr["op"]=="ADD" or instr["op"]=="SUB" or instr["op"]=="AND"):
+                elif (instr["op"]=="ADD" or instr["op"]=="SUB" or instr["op"]=="AND" or instr["op"]=="BEQ"):
                     sources = [instr["src1"], instr["src2"]] 
                 else: 
                     sources=[] 
+                    print(f"invalid instruction in ID at cc {cycleCount}")
                 
                 #print(f"Cycle {cycleCount}: I{index + 1} sources: {sources}")
                 
@@ -147,7 +189,7 @@ for item in programs:
                         #7.1 - forwarding to make the results available faster by changing the ready cycle for the destination register
                         if (forwarding):
                             if (instr["op"] == "LW"): #load instruction results are ready later than ALU instructions
-                                ready[dest] = cycleCount+3 #INC by 3 cycles for faster results
+                                ready[dest] = cycleCount+2 #INC by 3 cycles for faster results
                             else: # ALU instruction results are ready sooner
                                 ready[dest] = cycleCount+1 #default
                         
@@ -162,7 +204,7 @@ for item in programs:
                 stage["IF"][cycleCount] = stage["IF"][cycleCount-1]
 
             #4.4 - new instruction is fetched when IF is open
-            if (next < count and stage["IF"][cycleCount] is None and stage["IF"][cycleCount-1] is None):
+            if (next < instructCount and stage["IF"][cycleCount] is None):
                 stage["IF"][cycleCount] =next
                 next = next+1
      
@@ -174,6 +216,7 @@ for item in programs:
         result["stallMessages"] = messages 
         result["program"] = program 
         result["forwarding"] = forwarding 
+        result["branches"] = branched 
         runs.append(result) #append run to list of recorded runs for the program
 
         print("\n==================================================")
@@ -193,6 +236,12 @@ for item in programs:
                 line = f"SW {instr['src1']}, {instr['offset']}({instr['base']})"
             elif (op == "ADD" or op == "SUB" or op == "AND"):
                 line = f"{op} {instr['dest']}, {instr['src1']}, {instr['src2']}"
+            elif (op == "BEQ"):
+                line = f"{op} {instr['jump']}, {instr['src1']}, {instr['src2']}"
+            elif (op == "LUI"):
+                line = f"{op} {instr['dest']}, {instr['immediate']}"
+            elif (op == "JAL"):
+                line = f"{op} {instr['dest']}, {instr['immediate']}"
             else: #error
                 line = "[ERROR] Unknown instruction!"
 
@@ -226,7 +275,7 @@ for item in programs:
         #8.5 - print summary: cycleCount, stalls, and CPI
         print("\nSUMMARY:")
         print(f"Instructions: {len(program)}")
-        print(f"Total Cycles: {cycleCount}")
+        print(f"Total Cycles: {cycleCount-1}")
         print(f"Stalls: {len(stalls)}")
         print(f"CPI: {cycleCount / len(program):.2f}\n")
     
@@ -237,12 +286,11 @@ for item in programs:
  
 #8.6 - print the results and show how forwarding effected the cycles and stalls
 print("\nCOMPARISON SUMMARY:")
-print(f"{'Program':<20} | {'No Fwd Cycles':<13} | {'No Fwd Stalls':<13} | {'Fwd Cycles':<10} | {'Fwd Stalls':<10}") 
+print(f"{'Program':<20} | {'No Fwd Cycles':<13} | {'No Fwd Stalls':<13} | {'Fwd Cycles':<10} | {'Fwd Stalls':<10} | {'Branch':<10}") 
 for item in results:
  
     title = item[0] #print title
     resultOff = item[1] #print results (forwarding off)
     resultOn = item[2] #print results (forwarding on)
     
-    print(f"{title:<20} | {resultOff['cycleCount']:<13} | {len(resultOff['stalls']):<13} | {resultOn['cycleCount']:<10} | {len(resultOn['stalls']):<10}") 
- 
+    print(f"{title:<20} | {resultOff['cycleCount']:<13} | {len(resultOff['stalls']):<13} | {resultOn['cycleCount']:<10} | {len(resultOn['stalls']):<10} | {resultOn['branches']:<10}") 
